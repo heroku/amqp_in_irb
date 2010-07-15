@@ -43,7 +43,7 @@ class ParseOneOption
       when 'natural'
         arg = array[1]
         raise "No `#{type}' arg for `#{name}'." unless arg
-        b = ! /[0-9]+/.match(arg).nil?
+        b = ! /^[0-9]+$/.match(arg).nil?
         raise "Arg `#{arg}' for `#{name}' isn't a natural number." unless b
         [{sym => arg.to_i}, array[2..-1]]
       when 'bool'
@@ -73,8 +73,14 @@ def main(params)
 end
 
 params = {}
-parsers = OPTS.lines.map{|line| ParseOneOption.new(line) } 
+parsers = OPTS.lines.map{|line| ParseOneOption.new(line) }
 args = ARGV
+[ %w| --host RABBITMQ_NODE_IP_ADDRESS |,
+  %w| --port RABBITMQ_NODE_PORT | ].each do |opt, env|
+  next if args.index(opt) or ENV[env].nil?
+  STDERR.puts "Using envirnoment variable `#{env}' to set `#{opt}'."
+  args << opt << ENV[env]
+end
 while not args.empty?
   res = nil
   parsers.each do |parser|
@@ -98,6 +104,6 @@ end
 #  STDERR.puts sprintf('%-14s  %-40s', "--#{k}", v.to_s)
 #end
 
-ARGV = []  # We clear ARGV so IRB won't try to parse our opts.
+ARGV.clear  # We clear ARGV so IRB won't try to parse our opts.
 main(params)
 
