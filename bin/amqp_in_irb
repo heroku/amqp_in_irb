@@ -6,13 +6,31 @@ OPTS = <<OPTS
   --pass      : string          Password to use (defaults to "guest").
   --vhost     : string          AMQP virtual host.
   --logging   : bool            Turns on AMQP gem's logging (off default).
-  --timeout   : natural         Set the timeout in seconds.
 OPTS
 USAGE = <<USAGE
  USAGE: amqp_in_irb <option>+
 
-  Connect to an AMQP server and pop up an IRB console, using the following
-  options:
+  Connect to an AMQP server and pop up an IRB console, using the connection
+  options as outlined below.
+
+  In the IRB console, there is a variable $conn that exposes the AMQP
+  connection. Under the hood, our tool relies on Bunny, a synchronous AMQP
+  client library for Ruby. A simple session:
+
+    :;  amqp_in_irb
+    Connection available in `$conn'.
+    irb(main):001:0> q = $conn.queue('tasks')
+    => #<Bunny::Queue:0x7f4982a20d50 @subscripti...
+    irb(main):002:0> q.publish('LOL')
+    => nil
+    irb(main):003:0> m = q.pop[:payload]
+    => "LOL"
+    irb(main):004:0> q.delete
+    => :delete_ok
+
+  Many other AMQP methods are exposed by the Bunny gem.
+
+ OPTIONS
 
 #{OPTS}
 
