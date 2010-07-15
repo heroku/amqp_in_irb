@@ -63,9 +63,12 @@ end
 
 def main(params)
   begin
-    AMQP.start(params) do
-      IRB.start
-      AMQP.stop { EM.stop }
+    while true
+      irb = IRB::Irb.new
+      AMQP.start(params) do
+        irb.eval_input
+        AMQP.stop { EM.stop }
+      end
     end
   rescue AMQP::Error => e
     puts e.message
