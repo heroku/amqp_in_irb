@@ -1,0 +1,103 @@
+#!/usr/bin/env ruby
+OPTS = <<OPTS
+  --host      : string          Host to connect to (defaults to "localhost").
+  --port      : natural         Port on the host.
+  --user      : string          User to connect as (defaults to "guest").
+  --pass      : string          Password to use (defaults to "guest").
+  --vhost     : string          AMQP virtual host.
+  --logging   : bool            Turns on AMQP gem's logging (off default).
+  --timeout   : natural         Set the timeout in seconds.
+OPTS
+USAGE = <<USAGE
+ USAGE: amqp_in_irb <option>+
+
+  Connect to an AMQP server and pop up an IRB console, using the following
+  options:
+
+#{OPTS}
+
+USAGE
+
+begin
+  puts USAGE
+  exit 0
+end unless (%w| -h -? --help | & ARGV).empty?
+
+require 'irb'
+
+require 'rubygems'
+require 'amqp'
+require 'mq'
+
+
+class ParseOneOption
+  RE = /^ +(--[^ ]+) +: *(natural|bool|string) +([^ ].+)$/
+  def ParseOneOption.parse_option(name, type, array)
+    if name == array[0]
+      sym = name[2..-1].to_sym
+      case type
+      when 'string'
+        arg = array[1]
+        raise "No `#{type}' arg for `#{name}'." unless arg
+        [{sym => arg}, array[2..-1]]
+      when 'natural'
+        arg = array[1]
+        raise "No `#{type}' arg for `#{name}'." unless arg
+        b = ! /[0-9]+/.match(arg).nil?
+        raise "Arg `#{arg}' for `#{name}' isn't a natural number." unless b
+        [{sym => arg.to_i}, array[2..-1]]
+      when 'bool'
+        [{sym => true}, array[1..-1]]
+      end
+    end
+  end
+  def initialize(s)
+    m = RE.match(s)
+    raise "Invalid option spec:\n#{s}" unless m
+    @name, @type, @desc = m[1..3]
+  end
+  def parse(array)
+    ParseOneOption.parse_option(@name, @type, array)
+  end
+end
+
+def main(params)
+  begin
+    AMQP.start(params) do
+      IRB.start
+      AMQP.stop { EM.stop }
+    end
+  rescue AMQP::Error => e
+    puts e.message
+  end
+end
+
+params = {}
+parsers = OPTS.lines.map{|line| ParseOneOption.new(line) } 
+args = ARGV
+while not args.empty?
+  res = nil
+  parsers.each do |parser|
+    begin
+      res = parser.parse(args)
+    rescue RuntimeError => e
+      abort e.message
+    end
+    if res
+      hash, arr = res
+      params = params.merge(hash)
+      args = arr
+      break
+    end
+  end
+  abort "Mysterious argument `#{args[0]}'." unless res
+end
+
+#STDERR.puts "Using connection parameters:"
+#params.each do |k, v|
+#  STDERR.puts sprintf('%-14s  %-40s', "--#{k}", v.to_s)
+#end
+
+ARGV = []  # We clear ARGV so IRB won't try to parse our opts.
+main(params)
+
