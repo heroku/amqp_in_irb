@@ -36,6 +36,9 @@ USAGE = <<USAGE
 
 USAGE
 
+trap('INT'){ abort 'Terminated.' }
+
+
 begin
   puts USAGE
   exit 0
@@ -86,6 +89,8 @@ def main(params)
     STDERR.puts "Connection available in `$conn'."
     IRB.start
     $conn.stop
+  rescue SystemExit => e
+    # Do nothing.
   rescue Exception => e
     STDERR.puts "Exception (#{e.class}):\n  #{e.message}"
   end
