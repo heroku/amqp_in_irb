@@ -26,7 +26,7 @@ end unless (%w| -h -? --help | & ARGV).empty?
 require 'irb'
 
 require 'rubygems'
-require 'amqp'
+require 'bunny'
 require 'mq'
 
 
@@ -63,15 +63,13 @@ end
 
 def main(params)
   begin
-    while true
-      irb = IRB::Irb.new
-      AMQP.start(params) do
-        irb.eval_input
-        AMQP.stop { EM.stop }
-      end
-    end
-  rescue AMQP::Error => e
-    puts e.message
+    $conn = Bunny.new(params)
+    $conn.start
+    STDERR.puts "Connection available in `$conn'."
+    IRB.start
+    $conn.stop
+  rescue Exception => e
+    STDERR.puts "Exception (#{e.class}):\n  #{e.message}"
   end
 end
 
