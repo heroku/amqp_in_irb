@@ -5,10 +5,12 @@ OPTS = <<OPTS
   --user      : string          User to connect as (defaults to "guest").
   --pass      : string          Password to use (defaults to "guest").
   --vhost     : string          AMQP virtual host.
-  --logging   : bool            Turns on AMQP gem's logging (off default).
+  --logging   : bool            Turns on AMQP library's logging (off default).
+  --ssl       : bool            Turns on SSL.
 OPTS
 USAGE = <<USAGE
- USAGE: amqp_in_irb <option>+
+ USAGE: amqp_in_irb <AMQP URL>
+        amqp_in_irb <option>+
 
   Connect to an AMQP server and pop up an IRB console, using the connection
   options as outlined below.
@@ -82,7 +84,8 @@ class ParseOneOption
   end
 end
 
-def main(params)
+def connect_and_run(params)
+  ARGV.clear  # We clear ARGV so IRB won't try to parse our opts.
   begin
     $conn = Bunny.new(params)
     $conn.start
@@ -96,31 +99,107 @@ def main(params)
   end
 end
 
-params = {}
-parsers = OPTS.lines.map{|line| ParseOneOption.new(line) }
-args = ARGV
-[ %w| --host RABBITMQ_NODE_IP_ADDRESS |,
-  %w| --port RABBITMQ_NODE_PORT | ].each do |opt, env|
-  next if args.index(opt) or ENV[env].nil?
-  STDERR.puts "Using envirnoment variable `#{env}' to set `#{opt}'."
-  args << opt << ENV[env]
-end
-while not args.empty?
-  res = nil
-  parsers.each do |parser|
-    begin
-      res = parser.parse(args)
-    rescue RuntimeError => e
-      abort e.message
+def opts_from_environment
+  results = []
+  amqp = ENV['AMQP_URL']
+  rabbit_port = ENV['RABBITMQ_NODE_PORT']
+  rabbit_ip = ENV['RABBITMQ_NODE_IP_ADDRESS']
+  case
+  when amqp
+    if rabbit_ip or rabbit_port
+      STDERR.puts "Ignoring rabbit environment variables due to `AMQP_URL'."
     end
-    if res
-      hash, arr = res
-      params = params.merge(hash)
-      args = arr
-      break
+    parts = parse_AMQP_url(amqp)
+    if parts.keys.empty?
+      STDERR.puts "Unreadable `AMQP_URL'."
+    else
+      listing = parts.keys.map{|k| "`#{k}'"}.join(', ')
+      STDERR.puts "Using `AMQP_URL' to set #{listing}."
+      parts.each do |k, v|
+        case v
+        when TrueClass
+          args << k
+        else
+          results << k << v
+        end
+      end
+    end
+  else
+    if rabbit_ip
+      STDERR.puts "Using `RABBITMQ_NODE_IP_ADDRESS' to set `--host'."
+      results << '--host' << rabbit_ip
+    end
+    if rabbit_port
+      STDERR.puts "Using `RABBITMQ_NODE_PORT' to set `--port'."
+      results << '--port' << rabbit_port
     end
   end
-  abort "Mysterious argument `#{args[0]}'." unless res
+  results
+end
+
+# amqp://root:pwnt@example.com/passwd
+AMQP_RE = /^(amqps?):\/\/    ##  AMQP protocol scheme.
+             (([^\/:@]+)     ##  User spec. ## User.
+              (:([^\/@]+))?                 ## Password.
+              @                             ## Closing @ sign.
+             )?
+             ([^\/:@]+)      ##  Host.
+             (:([0-9]+))?    ##  Port.
+             (\/([^\/]+))?   ##  Virtual host.
+             \/?             ##  Ending slash is ending!
+            $/x
+def parse_AMQP_url(url)
+  result = {}
+  m = AMQP_RE.match(url)
+  if m
+    scheme, _2, user, _4, pass, host, _7, port, _9, vhost = m[1..-1]
+    result['--ssl'] = true if 'amqps' == scheme
+    result['--user'] = user if user
+    result['--pass'] = pass if pass
+    result['--host'] = host if host
+    result['--port'] = port if port
+    result['--vhost'] = vhost if vhost
+  end
+  result
+end
+
+def derive_params
+  params = {}
+  args = []
+  parsers = OPTS.lines.map{|line| ParseOneOption.new(line) }
+  case
+  when /^amqps?:\/\/[^ ]+$/.match(ARGV.join(' '))
+    parts = parse_AMQP_url(amqp)
+    abort "Unreadable AMQP URL argument." if parts.keys.empty?
+    parts.each do |k, v|
+      case v
+      when TrueClass
+        args << k
+      else
+        args << k << v
+      end
+    end
+  else
+    args = ARGV + opts_from_environment
+  end
+  while not args.empty?
+    res = nil
+    parsers.each do |parser|
+      begin
+        res = parser.parse(args)
+      rescue RuntimeError => e
+        abort e.message
+      end
+      if res
+        hash, arr = res
+        params = params.merge(hash)
+        args = arr
+        break
+      end
+    end
+    abort "Mysterious argument `#{args[0]}'." unless res
+  end
+  params
 end
 
 #STDERR.puts "Using connection parameters:"
@@ -128,6 +207,8 @@ end
 #  STDERR.puts sprintf('%-14s  %-40s', "--#{k}", v.to_s)
 #end
 
-ARGV.clear  # We clear ARGV so IRB won't try to parse our opts.
-main(params)
+if __FILE__ == $0
+  params = derive_params
+  connect_and_run(params)
+end
 
