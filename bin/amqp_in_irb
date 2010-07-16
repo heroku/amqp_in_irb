@@ -198,7 +198,7 @@ def derive_params
         break
       end
     end
-    abort "Mysterious argument `#{args[0]}'." unless res
+    abort "Failing on mysterious argument `#{args[0]}'." unless res
   end
   params
 end
