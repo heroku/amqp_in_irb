@@ -32,7 +32,7 @@ task :uninstall => :gemspec
 
 desc 'Delete gems and docs.'
 task :clean do
-  system 'rm *.gem'
+  system 'rm -f *.gem'
   system 'rm -rf doc'
 end
 
