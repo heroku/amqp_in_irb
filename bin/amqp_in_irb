@@ -13,7 +13,8 @@ USAGE = <<USAGE
         amqp_in_irb <option>+
 
   Connect to an AMQP server and pop up an IRB console, using the connection
-  options as outlined below.
+  parameters provided in an AMQP URL argument, an `AMQP_URL' environment
+  variables, RabbitMQ environment variables or options as listed below.
 
   In the IRB console, there is a variable $conn that exposes the AMQP
   connection. Under the hood, our tool relies on Bunny, a synchronous AMQP
