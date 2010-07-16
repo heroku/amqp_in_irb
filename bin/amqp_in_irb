@@ -170,7 +170,7 @@ def derive_params
   parsers = OPTS.lines.map{|line| ParseOneOption.new(line) }
   case
   when /^amqps?:\/\/[^ ]+$/.match(ARGV.join(' '))
-    parts = parse_AMQP_url(amqp)
+    parts = parse_AMQP_url(ARGV[0])
     abort "Unreadable AMQP URL argument." if parts.keys.empty?
     parts.each do |k, v|
       case v
