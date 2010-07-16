@@ -4,6 +4,7 @@ spec = Gem::Specification.new do |s|
   s.summary                  =  'Interactive connection to an AMQP server.'
   s.description              =  'Interactive connection to an AMQP server.'
   s.add_dependency(             'bunny'                                       )
+  s.files                    =  Dir['lib/**/*.rb']
   s.require_path             =  'lib'
   s.bindir                   =  'bin'
   s.executables              =  %w| amqp_in_irb |
