@@ -1,6 +1,6 @@
 spec = Gem::Specification.new do |s|
   s.name                     =  'amqp_in_irb'
-  s.version                  =  '0.1.1'
+  s.version                  =  '0.1.2'
   s.summary                  =  'Interactive connection to an AMQP server.'
   s.description              =  'Interactive connection to an AMQP server.'
   s.add_dependency(             'bunny'                                       )

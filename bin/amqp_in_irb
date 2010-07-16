@@ -51,7 +51,6 @@ require 'irb'
 
 require 'rubygems'
 require 'bunny'
-require 'mq'
 
 
 class ParseOneOption
